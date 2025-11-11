@@ -1,4 +1,4 @@
-CREATE TABLE `airbnb-clouddbt.Retail_DEV.Retail_Exchange_Rates_Dev`
+CREATE TABLE `zara-477911.ZaraDev.Retail_Exchange_Rates_Dev`
 (
 Exchange_Rate_ID INT64,
 ExchangeRateDate DATE,
@@ -9,7 +9,7 @@ Meta_Insert_Time_Stamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
 Meta_Insert_By STRING DEFAULT 'User' 
 ) ;
 ------------------------------------------------------------------------------------------
-CREATE TABLE `airbnb-clouddbt.Retail_DEV.Retail_Transactions_Dev`
+CREATE TABLE `zara-477911.ZaraDev.Retail_Transactions_Dev`
 (
 Transaction_ID INT64,
 Transaction_Date DATE,
@@ -31,7 +31,7 @@ Meta_Insert_Time_Stamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
 Meta_Insert_By STRING DEFAULT 'User'
 ) ;
 ------------------------------------------------------------------------------------------
-CREATE TABLE `airbnb-clouddbt.Retail_PROD.GlobalOverview`
+CREATE TABLE `zara-477911.ZaraProd.GlobalOverview`
 (
 Transaction_Date DATE,
 Location STRING,
