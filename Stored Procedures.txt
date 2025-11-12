@@ -1,0 +1,179 @@
+CREATE OR REPLACE PROCEDURE `zara-477911.ZaraDev.Retail_Exchange_Rates_Dev`()
+BEGIN
+DECLARE ERROR_MESSAGE STRING DEFAULT '';
+
+BEGIN
+EXECUTE IMMEDIATE """ INSERT INTO `zara-477911.ZaraDev.Retail_Exchange_Rates_Dev` 
+(
+Exchange_Rate_ID,
+ExchangeRateDate,
+ForeignCountry,
+ForeignCountryCode,
+ExchangeRate
+)
+
+SELECT 
+CurrencyRateId,
+ExchangeRateDate,
+ForeignCountry,
+ForeignCountryCode,
+CAST(ExchangeRate AS NUMERIC)
+FROM   
+(
+SELECT 
+*,row_number() over(PARTITION BY ExchangeRateDate, ForeignCountryCode ORDER BY ExchangeRateDate, ForeignCountryCode ASC) AS RNK
+FROM `zara-477911.ZaraRaw.RetailExchangeRates` WHERE ExchangeRateDate IS NOT NULL AND ForeignCountryCode IS NOT NULL
+) AS A    
+WHERE RNK = 1 """ ;
+
+END;
+
+EXCEPTION WHEN ERROR THEN SET ERROR_MESSAGE = @@ERROR.MESSAGE ;
+RAISE USING MESSAGE = ERROR_MESSAGE ;
+
+END;
+------------------------------------------------------------------------------------------
+
+CREATE OR REPLACE PROCEDURE `zara-477911.ZaraDev.Retail_Transactions_Dev`()
+BEGIN
+DECLARE ERROR_MESSAGE STRING DEFAULT '';
+
+BEGIN
+EXECUTE IMMEDIATE """ INSERT INTO `zara-477911.ZaraDev.Retail_Transactions_Dev`
+(
+Transaction_ID,
+Transaction_Date,
+Location,
+Promotion,
+DepartmentName,
+Seasonal,
+brand,
+ProductName,
+currency,
+IndexName,
+Gender,
+Manufactured_Qty,
+Actual_Cost_Price_PerUnit,
+Sold_Qty,
+Expected_Selling_Price_PerUnit,
+Actual_Sold_Price_PerUnit
+)
+SELECT 
+`Transaction ID`,
+Transaction_Date,
+`Product Position` AS Location,
+CAST(Promotion AS STRING),
+`Product Category` AS DepartmentName,
+CAST(Seasonal AS STRING),
+brand,
+name AS ProductName,
+currency,
+terms AS IndexName,
+section AS Gender,
+SUM(`Manufactured Qty`) AS Manufactured_Qty,
+SUM(`Manufactured Qty` * `Cost Price Per Unit`) AS Actual_Cost_Price_PerUnit,
+SUM(Quantity) AS Sold_Qty,
+SUM(Quantity * `Sold Price per Unit`) AS Actual_Sold_Price_PerUnit,
+SUM(Quantity * `Actual Selling Price`) AS Expected_Selling_Price_PerUnit
+FROM   
+(
+SELECT 
+*,row_number() over(PARTITION BY `Transaction_Date`, `Product ID`, Currency, Quantity ORDER BY `Transaction_Date` ASC) AS RNK
+FROM `zara-477911.ZaraRaw.RetailTransactions` 
+WHERE `Transaction_Date` IS NOT NULL AND `Product ID` IS NOT NULL AND Currency IS NOT NULL
+) AS A    
+WHERE RNK = 1 
+
+GROUP BY
+`Transaction ID`,
+Transaction_Date,
+`Product Position`,
+Promotion,
+`Product Category`,
+Seasonal,
+brand,
+name,
+currency,
+terms,
+section
+""" ;
+
+END;
+
+EXCEPTION WHEN ERROR THEN SET ERROR_MESSAGE = @@ERROR.MESSAGE ;
+RAISE USING MESSAGE = ERROR_MESSAGE ;
+
+END;
+------------------------------------------------------------------------------------------
+
+CREATE OR REPLACE PROCEDURE `zara-477911.ZaraProd.GlobalOverview`()
+BEGIN
+
+EXECUTE IMMEDIATE """ INSERT INTO `zara-477911.ZaraProd.GlobalOverview`
+(
+Transaction_Date,
+Location,
+Brand ,
+Promotion ,
+Seasonal ,
+DepartmentName ,
+IndexName ,
+ProductName ,
+Gender ,
+Manufactured_Qty ,
+Currency ,
+Cost_Price ,
+Expected_Selling_Price ,
+Actual_Sold_Price
+)
+SELECT 
+Transaction_Date,
+Location,
+Brand,
+Promotion,
+Seasonal,
+DepartmentName,
+IndexName,
+ProductName,
+Gender,
+Manufactured_Qty,
+Currency,
+SUM(Cost_Price * C.ExchangeRate) AS Cost_Price,
+SUM(Expected_Selling_Price * C.ExchangeRate) AS Expected_Selling_Price,
+SUM(Actual_Sold_Price * C.ExchangeRate) AS Actual_Sold_Price
+FROM 
+(
+select Transaction_Date,Location,Brand,Promotion,Seasonal,DepartmentName,IndexName,ProductName,Currency,Gender,
+SUM(Manufactured_Qty) AS Manufactured_Qty,SUM(Manufactured_Qty * Actual_Cost_Price_PerUnit) AS Cost_Price,
+SUM(Manufactured_Qty * Expected_Selling_Price_PerUnit) AS Expected_Selling_Price,
+SUM(Manufactured_Qty * Actual_Sold_Price_PerUnit) AS Actual_Sold_Price
+from `zara-477911.ZaraDev.Retail_Transactions_Dev` 
+GROUP BY Transaction_Date,
+Location,Brand,Promotion,Seasonal,DepartmentName,IndexName,ProductName,Currency,Gender
+) AS A   
+LEFT JOIN 
+(
+SELECT MAX(ExchangeRateDate) AS MAX_ExchangeRateDate,ForeignCountryCode, ForeignCountry
+FROM `zara-477911.ZaraDev.Retail_Exchange_Rates_Dev` 
+GROUP BY ForeignCountryCode, ForeignCountry
+ ) AS B
+ON A.Currency = B.ForeignCountryCode AND A.Transaction_Date = B.MAX_ExchangeRateDate
+LEFT JOIN 
+(SELECT * FROM `zara-477911.ZaraDev.Retail_Exchange_Rates_Dev` ) AS C
+ON B.MAX_ExchangeRateDate = C.ExchangeRateDate AND B.ForeignCountryCode = C.ForeignCountryCode
+
+GROUP BY 
+Transaction_Date,
+Location,
+Brand,
+Promotion,
+Seasonal,
+DepartmentName,
+IndexName,
+ProductName,
+Gender,
+Manufactured_Qty,
+Currency """ ;
+
+END;
+
