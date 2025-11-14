@@ -1,4 +1,4 @@
-{% macro call_Retail_Exchange_Rates_Dev() %}
+{% macro call_GlobalOverview() %}
     {% set sql %}
         CALL `zara-477911.ZaraProd.GlobalOverview`() ;
     {% endset %}

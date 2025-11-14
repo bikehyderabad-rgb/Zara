@@ -1,4 +1,4 @@
-{% macro call_Retail_Exchange_Rates_Dev() %}
+{% macro call_Retail_Transactions_Dev() %}
     {% set sql %}
         CALL `zara-477911.ZaraDev.Retail_Transactions_Dev`() ;
     {% endset %}
